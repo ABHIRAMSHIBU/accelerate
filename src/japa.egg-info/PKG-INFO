@@ -1,0 +1,15 @@
+Metadata-Version: 2.4
+Name: japa
+Version: 0.1.0
+Summary: JAPA: Just Another Project Automation - A server service monitor with Telegram interface
+Author: JAPA Team
+Author-email: example@example.com
+Keywords: telegram,monitoring,service
+Requires-Python: >=3.7
+Requires-Dist: python-telegram-bot>=20.0
+Dynamic: author
+Dynamic: author-email
+Dynamic: keywords
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary

@@ -1,0 +1,2 @@
+[console_scripts]
+japa = main:main

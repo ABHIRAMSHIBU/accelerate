@@ -1,0 +1,12 @@
+{
+    "immich": {
+        "health_check": "./health_check_podman.sh immich_redis immich_machine_learning immich_postgres immich_server",
+        "restart": "cd /path/to/immich && podman compose up -d",
+        "rebuild": "cd /path/to/immich && podman compose pull && podman compose up -d --force-recreate"
+    },
+    "jellyfin": {
+        "health_check": "./health_check_podman.sh jellyfin",
+        "restart": "podman restart jellyfin",
+        "rebuild": "podman compose pull docker.io/jellyfin/jellyfin:latest && podman run -it -d --name jellyfin --net=host --volume /path/to/jellyfin/config:/config --volume /path/to/jellyfin/cache:/cache --mount type=bind,source=/path/to/media,target=/media --restart=unless-stopped --device /dev/dri/renderD128:/dev/dri/renderD128 --device /dev/dri/renderD129:/dev/dri/renderD129 --replace jellyfin/jellyfin"
+    }
+} 

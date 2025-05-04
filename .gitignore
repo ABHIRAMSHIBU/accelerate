@@ -1,0 +1,7 @@
+users.json
+.env
+bot.log
+config.json
+test_output.log
+**/__pycache__
+**/venv/**
