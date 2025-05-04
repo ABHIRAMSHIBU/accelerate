@@ -1,5 +1,5 @@
 """
-JAPA (Just Another Project Automation) main class.
+JAPA (Just Another Process Assistant) main class.
 """
 import threading
 import time

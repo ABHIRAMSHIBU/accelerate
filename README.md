@@ -45,22 +45,14 @@ This file contains service-specific configurations:
 ```json
 {
   "immich": {
-    "health_check": {
-      "url": "http://localhost:3001/api/server-info/ping",
-      "timeout": 5,
-      "interval": 60
-    },
-    "restart_command": "docker-compose -f /home/user/immich/docker-compose.yml restart",
-    "rebuild_command": "docker-compose -f /home/user/immich/docker-compose.yml up -d --build"
+    "health_check": "./health_check_podman.sh immich_redis immich_machine_learning immich_postgres immich_server",
+    "restart": "cd /path/to/immich && podman compose up -d",
+    "rebuild": "cd /path/to/immich && podman compose pull && podman compose up -d --force-recreate"
   },
   "jellyfin": {
-    "health_check": {
-      "url": "http://localhost:8096/health",
-      "timeout": 5,
-      "interval": 60
-    },
-    "restart_command": "systemctl restart jellyfin",
-    "rebuild_command": null
+    "health_check": "./health_check_podman.sh jellyfin",
+    "restart": "podman restart jellyfin",
+    "rebuild": "podman compose pull docker.io/jellyfin/jellyfin:latest && podman run -it -d --name jellyfin --net=host --volume /path/to/jellyfin/config:/config --volume /path/to/jellyfin/cache:/cache --mount type=bind,source=/path/to/media,target=/media --restart=unless-stopped --device /dev/dri/renderD128:/dev/dri/renderD128 --device /dev/dri/renderD129:/dev/dri/renderD129 --replace jellyfin/jellyfin"
   }
 }
 ```
@@ -152,7 +144,7 @@ chmod +x src/japa_admin.py
 ./src/japa_admin.py users remove 123456789
 
 # Export users to JSON
-./src/japa_admin.py users export --format json
+./src/japa_admin.py users export users_backup.json --format json
 
 # List pending admin requests
 ./src/japa_admin.py requests list
@@ -164,6 +156,8 @@ chmod +x src/japa_admin.py
 ./src/japa_admin.py requests deny <request_id>
 ```
 
+For a comprehensive guide to the CLI tool, see [JAPA Admin Manual](docs/JAPA_ADMIN.md).
+
 ## Architecture
 
 JAPA follows a modular design with clear separation of concerns:
@@ -173,6 +167,16 @@ JAPA follows a modular design with clear separation of concerns:
 3. **User Database** - Authentication and role management
 
 This design allows JAPA to be extended to support multiple interfaces in the future, such as Discord, Slack, or a web UI.
+
+For a detailed architecture overview, see [Architecture Documentation](docs/arch.md).
+
+## Documentation
+
+JAPA comes with comprehensive documentation:
+
+- [Architecture Documentation](docs/arch.md) - Detailed overview of the system design
+- [Authentication Plan](docs/auth_plan.md) - Implementation plan for authentication and permissions
+- [JAPA Admin Manual](docs/JAPA_ADMIN.md) - Complete guide for the CLI user management tool
 
 ## Command Line Arguments
 

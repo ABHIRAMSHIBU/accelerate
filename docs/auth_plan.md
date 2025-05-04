@@ -107,9 +107,9 @@ The current implementation has:
 #### 4.1 New Admin Commands
 ```
 /admins - List all admins
-/promote <user_id or @username> - Promote a user to admin 
-/demote <user_id or @username> - Demote an admin to regular user
-/remove <user_id or @username> - Remove a user completely from the database
+/promote <user_id> - Promote a user to admin (superadmin only)
+/demote <user_id> - Demote an admin to regular user (superadmin only)
+/remove <user_id> - Remove a user completely from the database (superadmin only)
 /requestadmin [reason] - Request admin privileges (for regular users)
 ```
 
@@ -136,63 +136,69 @@ The current implementation has:
 
 #### 5.2 Command Structure
 ```
-japa-admin users list [--role <role>]          # List all users or filter by role
-japa-admin users add <user_id> [--role <role>] # Add a new user
-japa-admin users remove <user_id>              # Remove a user
-japa-admin users promote <user_id>             # Promote a user
-japa-admin users demote <user_id>              # Demote a user
-japa-admin users export [--format <format>]    # Export user data
-japa-admin requests list                       # List pending requests
-japa-admin requests approve <request_id>       # Approve a request
-japa-admin requests deny <request_id>          # Deny a request
+# User Management
+src/japa_admin.py users list [--role <role>]            # List all users or filter by role
+src/japa_admin.py users add <user_id> [--username <name>] [--role <role>]  # Add a new user
+src/japa_admin.py users remove <user_id>                # Remove a user
+src/japa_admin.py users promote <user_id> [--role <role>]  # Promote a user (default: admin)
+src/japa_admin.py users demote <user_id> [--role <role>]   # Demote a user (default: regular)
+src/japa_admin.py users export <output_file> [--format <format>]  # Export user data
+
+# Request Management
+src/japa_admin.py requests list                        # List pending requests
+src/japa_admin.py requests approve <request_id>        # Approve a request
+src/japa_admin.py requests deny <request_id>           # Deny a request
 ```
 
 #### 5.3 Implementation
-- Implement as a standalone Python script
-- Use argparse for command-line arguments
-- Share database connection code with main application
-- Include comprehensive help text and examples
+- Implemented as a standalone Python script (`src/japa_admin.py`)
+- Uses argparse for command-line arguments
+- Shares database connection code with main application
+- Includes comprehensive help text and examples
 
-### 6. Implementation Phases
+### 6. Implementation Status
 
-#### Phase 1: SQLite Database Setup
-1. Create SQLite database schema
-2. Implement data access layer for user management
-3. Migrate existing user data from JSON to SQLite
-4. Update `TelegramInterface` to use SQLite instead of JSON
+All planned phases have been successfully implemented:
 
-#### Phase 2: Configuration Separation
+#### Phase 1: SQLite Database Setup ✅
+1. Created SQLite database schema
+2. Implemented data access layer for user management
+3. Migrated existing user data from JSON to SQLite
+4. Updated `TelegramInterface` to use SQLite instead of JSON
+
+#### Phase 2: Configuration Separation ✅
 1. Split configuration into JAPA and Telegram-specific parts
-2. Ensure JAPA remains independent of Telegram
-3. Update main script to handle both configuration files properly
-4. Modify TelegramInterface to accept JAPA instance rather than create one
+2. Ensured JAPA remains independent of Telegram
+3. Updated main script to handle both configuration files properly
+4. Modified TelegramInterface to accept JAPA instance rather than create one
 
-#### Phase 3: Basic Role System
-1. Implement role-based permission checking
-2. Add configuration options for superadmin
-3. Restrict sensitive commands to admin roles
+#### Phase 3: Basic Role System ✅
+1. Implemented role-based permission checking
+2. Added configuration options for superadmin
+3. Restricted sensitive commands to admin roles
 
-#### Phase 4: User Management Commands
-1. Implement `/admins` command
-2. Implement `/promote` and `/demote` for superadmins
-3. Update help text to reflect available commands
+#### Phase 4: User Management Commands ✅
+1. Implemented `/admins` command
+2. Implemented `/promote` and `/demote` for superadmins
+3. Implemented `/remove` for superadmins
+4. Updated help text to reflect available commands
 
-#### Phase 5: Promotion Workflow
-1. Implement `/requestadmin` command
-2. Create approval system with inline buttons
-3. Implement notification mechanism for requests
+#### Phase 5: Promotion Workflow ✅
+1. Implemented `/requestadmin` command
+2. Created approval system with inline buttons
+3. Implemented notification mechanism for requests
 
-#### Phase 6: CLI Tool Development
-1. Implement basic CLI structure and commands
-2. Add user management functionality
-3. Add request management functionality
-4. Add data export/backup features
+#### Phase 6: CLI Tool Development ✅
+1. Implemented basic CLI structure and commands
+2. Added user management functionality
+3. Added request management functionality
+4. Added data export/backup features
 
-#### Phase 7: Testing & Documentation
-1. Test each permission scenario
-2. Document new commands and workflows
-3. Ensure backward compatibility
-4. Document CLI tool usage
+#### Phase 7: Testing & Documentation ✅
+1. Tested each permission scenario
+2. Documented new commands and workflows
+3. Ensured backward compatibility
+4. Documented CLI tool usage
 
 ### 7. Future Security Enhancements
 

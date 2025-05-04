@@ -1,4 +1,4 @@
-# Just Another Project Automation (JAPA)
+# Just Another Process Assistant (JAPA)
 JAPA project is a Python Telegram bot that monitors the health of services on a server and allows for remote management through Telegram.
 
 ## Architecture
@@ -18,8 +18,9 @@ JAPA project is a Python Telegram bot that monitors the health of services on a 
 
 - `CommandExecutor` class:
     - Executes shell commands safely
-    - Captures command output and error messages
-    - Implements timeout handling for long-running commands
+    - Captures stdout and stderr
+    - Implements timeout handling for long-running commands (5 minute timeout)
+    - Returns standardized result tuple (success, message)
 
 - `JAPA` class:
     - Core service monitoring engine
@@ -34,6 +35,13 @@ JAPA project is a Python Telegram bot that monitors the health of services on a 
     - Processes command requests from users
     - Dispatches notifications to registered users
     - Provides a complete command handler interface
+    
+- `UserDatabase` class:
+    - Manages SQLite database for user information
+    - Handles user roles (regular, admin, superadmin)
+    - Manages pending admin requests
+    - Provides methods for user management (add, update, remove)
+    - Supports migration from JSON to SQLite
 
 ### Class Diagram
 
@@ -75,11 +83,22 @@ classDiagram
         +notification_handler()
         +_handle_commands()
     }
+    class UserDatabase {
+        +get_user()
+        +add_user()
+        +update_user_role()
+        +remove_user()
+        +get_users_by_role()
+        +create_admin_request()
+        +approve_request()
+        +deny_request()
+    }
     
     JsonConfig --> JAPA
     CommandExecutor --> JAPA
     JAPA --> TelegramInterface
     TelegramBot --> TelegramInterface
+    UserDatabase --> TelegramInterface
 ```
 
 ### System Flow
@@ -91,13 +110,18 @@ graph TD
     C --> B
     B --> D[TelegramInterface]
     E[TelegramBot] --> D
+    G[UserDatabase] --> D
     D --> B
     F[Webhook/Polling] --> E
 ```
 
 ## Configuration
 
-JAPA uses a JSON configuration file to define services and their management commands:
+JAPA uses a two-file configuration system:
+
+### 1. JAPA Configuration (config.json)
+
+The main service configuration file defines services and their management commands:
 
 ```json
 {
@@ -108,7 +132,8 @@ JAPA uses a JSON configuration file to define services and their management comm
     },
     "jellyfin": {
         "health_check": "health_check_podman.sh jellyfin",
-        "restart": "podman restart jellyfin"
+        "restart": "podman restart jellyfin",
+        "rebuild": "podman compose pull docker.io/jellyfin/jellyfin:latest && podman run -it -d --name jellyfin --net=host --volume /mnt/nas/docker_folders/jellyfin/config:/config --volume /mnt/nas/docker_folders/jellyfin/cache:/cache --mount type=bind,source=/mnt/nas,target=/media --restart=unless-stopped --device /dev/dri/renderD128:/dev/dri/renderD128 --device /dev/dri/renderD129:/dev/dri/renderD129 --replace jellyfin/jellyfin"
     }
 }
 ```
@@ -118,7 +143,29 @@ Configuration for each service can include:
 - `restart`: Command to restart the service
 - `rebuild`: Command to rebuild/recreate the service
 
-The Telegram token is provided separately via command line arguments or environment variables.
+### 2. Telegram Interface Configuration (telegram_config.json)
+
+This file contains Telegram-specific configurations:
+
+```json
+{
+    "token": "YOUR_TELEGRAM_BOT_TOKEN",
+    "db_path": "users.db",
+    "superadmin_ids": [123456789],
+    "webhook": {
+        "use_webhook": false,
+        "webhook_url": "",
+        "webhook_port": 8443,
+        "cert_path": ""
+    }
+}
+```
+
+This configuration includes:
+- `token`: Telegram Bot API token 
+- `db_path`: Path to the SQLite database file
+- `superadmin_ids`: List of Telegram user IDs that will have superadmin privileges
+- `webhook`: Configuration for webhook mode (optional)
 
 ## Telegram Webhook vs Polling
 
@@ -219,36 +266,64 @@ The JAPA bot will automatically handle setting up the webhook with Telegram and 
 - User management:
   - Registration/unregistration of users
   - Persistence of user data
+  - Role-based access control (regular, admin, superadmin)
+  - Admin promotion workflow
 - Command processing:
   - `/start` - Register for notifications
   - `/stop` - Unregister from notifications
   - `/status [service]` - Check service status
   - `/list` - List all configured services
-  - `/restart <service>` - Restart a service
-  - `/rebuild <service>` - Rebuild a service
   - `/help` - Show available commands
+  - Admin Commands:
+    - `/restart <service>` - Restart a service
+    - `/rebuild <service>` - Rebuild a service
+  - Superadmin Commands:
+    - `/admins` - List all admins
+    - `/promote <user_id>` - Promote a user to admin
+    - `/demote <user_id>` - Demote an admin to regular user
+    - `/remove <user_id>` - Remove a user completely from the database
+  - Regular User Commands:
+    - `/requestadmin [reason]` - Request admin privileges
 - Notification delivery:
   - Send health status notifications to registered users
   - Format messages for readability
 
 ## Running the Bot
 
-JAPA supports two modes of operation:
+JAPA supports two modes of operation and various configuration options:
 
 ### Polling Mode (Simple)
 ```bash
-python src/main.py --config config.json --token YOUR_TELEGRAM_TOKEN
+python src/main.py --config config.json --telegram-config telegram_config.json
 ```
 
 ### Webhook Mode (Efficient)
 ```bash
-python src/main.py --config config.json --token YOUR_TELEGRAM_TOKEN --webhook --webhook-url https://your-server.com:8443
+python src/main.py --config config.json --telegram-config telegram_config.json --webhook --webhook-url https://your-server.com:8443
 ```
 
-Additional options:
+### Command Line Options
+```
+usage: main.py [-h] [-c CONFIG] [--telegram-config TELEGRAM_CONFIG] [--token TOKEN] 
+               [--debug] [--webhook] [--webhook-url WEBHOOK_URL] [--webhook-port WEBHOOK_PORT] 
+               [--cert-path CERT_PATH] [--db-path DB_PATH] [--superadmin-id SUPERADMIN_ID]
+               [--migrate-users MIGRATE_USERS]
+```
+
+Key options:
+- `-c/--config`: Path to JAPA configuration file
+- `--telegram-config`: Path to Telegram interface configuration
+- `--token`: Telegram bot token (overrides config)
 - `--debug`: Enable debug logging
-- `--webhook-port`: Set custom webhook port
-- `--cert-path`: Path to SSL certificate
+- `--webhook-*`: Webhook configuration options
+- `--db-path`: Path to SQLite database file
+- `--superadmin-id`: Add a superadmin user ID
+- `--migrate-users`: Migrate users from JSON to SQLite
+
+### Environment Variables
+- `TELEGRAM_TOKEN`: Telegram bot token
+- `JAPA_DB_PATH`: Database path
+- `JAPA_SUPERADMIN_ID`: Comma-separated list of superadmin IDs
 
 ## Architecture Review
 
@@ -278,9 +353,10 @@ The JAPA system is designed with a clear separation of concerns, following modul
 4. **Areas for Future Enhancement**:
    - Metrics collection and visualization
    - More flexible notification filtering
-   - Enhanced security and user authorization
+   - Further security enhancements (2FA, rate limiting)
    - Service-specific custom commands
    - Support for service dependencies
+   - User ID encryption/hashing
 
 Overall, the architecture provides a solid foundation for a service monitoring system. Its modular design allows for future extensions and maintenance while keeping components loosely coupled.
     
