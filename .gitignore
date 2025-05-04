@@ -1,7 +1,16 @@
-users.json
+# Database
+users.db
+
+# Environment variables
 .env
-bot.log
+
+# Logs
+**/*.log
+
+# Config
 config.json
-test_output.log
+telegram_config.json
+
+# Cache
 **/__pycache__
 **/venv/**

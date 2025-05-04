@@ -14,6 +14,7 @@ from telegram.ext import (
     ContextTypes,
     filters,
     MessageHandler,
+    CallbackQueryHandler,
 )
 
 
@@ -49,23 +50,30 @@ class TelegramBot:
         self.bot = telegram.Bot(token=token)
         self.application = None
         self.command_handlers: Dict[str, Callable] = {}
+        self.callback_query_handler: Optional[Callable] = None
         self.webhook_mode = False
         self.webhook_url = None
     
-    async def send_message(self, chat_id: int, text: str) -> bool:
+    async def send_message(self, chat_id: int, text: str, reply_markup=None) -> bool:
         """
         Send a message to a Telegram chat.
         
         Args:
             chat_id: Telegram chat ID
             text: Message text
+            reply_markup: Optional reply markup for inline keyboards
             
         Returns:
             bool: True if message was sent successfully, False otherwise
         """
         try:
             logger.debug(f"Sending message to {chat_id}: {text[:50]}...")
-            await self.bot.send_message(chat_id=chat_id, text=text)
+            await self.bot.send_message(
+                chat_id=chat_id, 
+                text=text, 
+                reply_markup=reply_markup,
+                parse_mode='Markdown' if '**' in text or '*' in text else None
+            )
             logger.debug(f"Message sent to {chat_id} successfully")
             return True
         except Exception as e:
@@ -94,6 +102,16 @@ class TelegramBot:
         """
         logger.debug(f"Registering command handler for /{command}")
         self.command_handlers[command] = handler_func
+    
+    def register_callback_query_handler(self, handler_func: Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[None]]) -> None:
+        """
+        Register a callback query handler for inline keyboard buttons.
+        
+        Args:
+            handler_func: Async function that handles the callback query
+        """
+        logger.debug("Registering callback query handler")
+        self.callback_query_handler = handler_func
     
     async def _handle_unknown_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """
@@ -177,6 +195,11 @@ class TelegramBot:
                 logger.debug(f"Adding command handler for /{command}")
                 self.application.add_handler(CommandHandler(command, handler_func))
             
+            # Register callback query handler if available
+            if self.callback_query_handler:
+                logger.debug("Adding callback query handler")
+                self.application.add_handler(CallbackQueryHandler(self.callback_query_handler))
+            
             # Add handler for unknown commands
             self.application.add_handler(MessageHandler(filters.COMMAND, self._handle_unknown_command))
             
@@ -256,19 +279,27 @@ class TelegramBot:
         logger.info("Stopping Telegram bot...")
         
         if self.webhook_mode and self.webhook_url:
+            logger.info(f"Removing webhook at {self.webhook_url}")
             try:
-                logger.info("Removing webhook...")
                 await self.bot.delete_webhook()
                 logger.info("Webhook removed successfully")
             except Exception as e:
                 logger.error(f"Error removing webhook: {str(e)}")
         
         if self.application:
-            if hasattr(self.application, 'updater') and self.application.updater and self.application.updater.running:
-                await self.application.updater.stop()
-            
-            await self.application.stop()
-            await self.application.shutdown()
-            logger.info("Bot stopped successfully")
-        else:
-            logger.info("Bot was not running")
+            try:
+                logger.info("Stopping application...")
+                await self.application.stop()
+                logger.info("Application stopped")
+                
+                if self.application.updater:
+                    logger.info("Stopping updater...")
+                    await self.application.updater.stop()
+                    logger.info("Updater stopped")
+                
+                await self.application.shutdown()
+                logger.info("Application shutdown complete")
+            except Exception as e:
+                logger.error(f"Error stopping application: {str(e)}")
+        
+        logger.info("Telegram bot stopped")

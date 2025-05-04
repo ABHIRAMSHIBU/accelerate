@@ -1,0 +1,11 @@
+{
+    "token": "your_bot_token",
+    "db_path": "users.db",
+    "superadmin_ids": [123456789],
+    "webhook": {
+        "use_webhook": false,
+        "webhook_url": "",
+        "webhook_port": 8443,
+        "cert_path": ""
+    }
+} 
